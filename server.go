@@ -31,8 +31,11 @@ type HTTPOption func(h *HTTPServer)
 type HTTPServer struct {
 	srv  *http.Server
 	stop func() error
+	// 第一个版本的路由树
 	// routers 临时存放路由的位置
-	routers map[string]HandleFunc
+	// routers map[string]HandleFunc
+	// 第二个版本的路由树——前缀树
+	*router
 }
 
 /*
@@ -76,7 +79,7 @@ func WithHTTPServerStop(fn func() error) HTTPOption {
 
 func NewHTTP(opts ...HTTPOption) *HTTPServer {
 	h := &HTTPServer{
-		routers: map[string]HandleFunc{},
+		router: newRouter(),
 	}
 	for _, opt := range opts {
 		opt(h)
@@ -91,8 +94,7 @@ func NewHTTP(opts ...HTTPOption) *HTTPServer {
 func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 匹配路由
-	key := fmt.Sprintf("%s-%s", r.Method, r.URL.Path)
-	handler, ok := h.routers[key]
+	n, ok := h.getRouter(r.Method, r.URL.Path)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte("404 NOT FOUND"))
@@ -102,7 +104,7 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := NewContext(w, r)
 	fmt.Printf("request %s - %s\n", c.Method, c.Pattern)
 	// 2. 转发请求
-	handler(c)
+	n.handleFunc(c)
 }
 
 // Start 启动服务
@@ -122,12 +124,12 @@ func (h *HTTPServer) Stop() error {
 // addRouter 注册路由
 // 注册路由的时机：就是项目启动的时候注册，项目启动之后就不能注册了。
 // 问题一：注册的路由放在那里？
-func (h *HTTPServer) addRouter(method string, pattern string, handleFunc HandleFunc) {
-	// 构建唯一的key
-	key := fmt.Sprintf("%s-%s", method, pattern)
-	fmt.Printf("add router %s - %s\n", method, pattern)
-	h.routers[key] = handleFunc
-}
+//func (h *HTTPServer) addRouter(method string, pattern string, handleFunc HandleFunc) {
+//	// 构建唯一的key
+//	key := fmt.Sprintf("%s-%s", method, pattern)
+//	fmt.Printf("add router %s - %s\n", method, pattern)
+//	h.routers[key] = handleFunc
+//}
 
 // GET GET请求
 func (h *HTTPServer) GET(pattern string, handleFunc HandleFunc) {
