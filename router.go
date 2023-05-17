@@ -87,42 +87,73 @@ func (r *router) addRouter(method string, pattern string, handleFunc HandleFunc)
 // pattern 一些简单的可以校验：就是说 /awbudijs/asudfnio/asdhuio
 // pattern = /user/login/ 合法的
 // pattern = /user//login 非法的
-func (r *router) getRouter(method string, pattern string) (*node, bool) {
+func (r *router) getRouter(method string, pattern string) (*node, map[string]string, bool) {
+	// 问题：为什么是一个kv都是string类型的
+	params := make(map[string]string)
 	if pattern == "" {
-		return nil, false
+		return nil, params, false
 	}
 	// 获取根节点
 	root, ok := r.trees[method]
 	if !ok {
-		return nil, false
+		return nil, params, false
 	}
 	// TODO / 这种路由怎么办
 	if pattern == "/" {
-		return root, true
+		return nil, params, true
 	}
 	// 切割pattern
 	parts := strings.Split(strings.Trim(pattern, "/"), "/")
 	for _, part := range parts {
 		if part == "" {
-			return nil, false
+			return nil, params, false
 		}
 		root = root.getNode(part)
 		if root == nil {
-			return nil, false
+			return nil, params, false
 		}
+		// 想一想：我们注册的路由是 /study/:course
+		// 					    /study/golang
+		// {"course": "golang"}
+		// 节点找到了
+		// 1. 是静态路由 pass
+		// 2. 是动态路由中的参数路由-特殊处理：把参数维护住
+		if strings.HasPrefix(root.part, ":") {
+			params[root.part[1:]] = part
+		}
+		// /study/:course/action
+		// /study/*filepath
 	}
-	return root, true
+	return root, params, root.handleFunc != nil
 }
 
 type node struct {
-	part     string
+	part string
+	// children 其实就是静态路由
 	children map[string]*node
 	// handleFunc 这里存的是当前节点上的视图函数
 	// 就是咱们之前讲的data
 	handleFunc HandleFunc
+	// paramChild 参数路由
+	// 问题一：为什么这里是一个纯的node节点呢？
+	// /study/:course
+	// /study/:programming
+	// /study/golang
+	// 问题二：静态路由和动态路由的优先级问题
+	// 大家认为这两个那个优先级高
+	// 注册的路由 /study/golang
+	// 注册的路由 /study/:course
+	// 请求的地址 /study/golang
+	// 结论：静态路由的优先级高于动态路由
+	paramChild *node
 }
 
+// addNode 这个方法是在服务启动前调用
 func (n *node) addNode(part string) *node {
+	if strings.HasPrefix(part, ":") && n.paramChild == nil {
+		n.paramChild = &node{part: part}
+		return n.paramChild
+	}
 	// 判断当前节点有没有children属性，就是说，是不是nil
 	if n.children == nil {
 		n.children = make(map[string]*node)
@@ -140,12 +171,44 @@ func (n *node) addNode(part string) *node {
 func (n *node) getNode(part string) *node {
 	// n 的 children属性都不存在
 	if n.children == nil {
+		if n.paramChild != nil {
+			return n.paramChild
+		}
 		return nil
 	}
-	// 正常思路
+	// 正常思路：从静态路由中找
 	child, ok := n.children[part]
 	if !ok {
+		// 到这里了，就说明没有匹配到静态路由
+		if n.paramChild != nil {
+			return n.paramChild
+		}
 		return nil
 	}
 	return child
 }
+
+// 刚才的意思是：一个路由的同一个位置，不能同时有静态路由和动态路由
+
+/**
+路由分为动态的和静态的
+- 静态路由
+	/study/golang
+	/user/login
+	/register
+	...
+
+- 动态路由
+	1. 参数路由
+		/study/:course 这是咱们注册的路由
+			匹配的时候能匹配到什么路由：
+				/study/golang、/study/python:能匹配到
+				/study/golang/action:匹配不到
+	2. 通配符路由:贪婪匹配
+		/static/*filepath 这是咱们注册的路由
+			匹配的时候能匹配到什么路由：
+				/static/css/stylADAHSDCJUVKJSSVDSEKJ FCDNVNe.css
+				/static/js/index.js
+	3. 正则路由
+
+**/
