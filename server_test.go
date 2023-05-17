@@ -14,9 +14,13 @@ func Register(ctx *Context) {
 func Index(ctx *Context) {
 	ctx.response.Write([]byte("首页"))
 }
+func ParamIndex(ctx *Context) {
+	ctx.response.Write([]byte("参数路由" + ctx.params["course"]))
+}
 func TestHTTP_Start(t *testing.T) {
 	h := NewHTTP()
 	h.GET("/login", Login)
+	h.GET("/study/:course", ParamIndex)
 	h.POST("/register", Register)
 	h.DELETE("/", Index)
 	err := h.Start(":8080")
