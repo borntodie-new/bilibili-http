@@ -12,6 +12,8 @@ type Context struct {
 	Method string
 	// 请求URL
 	Pattern string
+	// 参数路由参数
+	params map[string]string
 }
 
 func NewContext(w http.ResponseWriter, r *http.Request) *Context {
