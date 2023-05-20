@@ -180,3 +180,108 @@ func TestRouterParamGet(t *testing.T) {
 		})
 	}
 }
+
+func TestRouterParamsAddB(t *testing.T) {
+	r := newRouter()
+	mockHandleFunc := func(ctx *Context) {}
+	// 正常注册的路由
+	r.addRouter("GET", "/:lang/intro", mockHandleFunc)
+	r.addRouter("GET", "/:lang/tutorial", mockHandleFunc)
+	r.addRouter("GET", "/:lang/doc", mockHandleFunc)
+	r.addRouter("GET", "/about", mockHandleFunc)
+	r.addRouter("GET", "/p/blog", mockHandleFunc)
+	r.addRouter("GET", "/p/related", mockHandleFunc)
+
+	//// 参数路由冲突
+	// r.addRouter("GET", "/:action/user", mockHandleFunc) // 报错
+	//r.addRouter("GET", "/study/:action/user", mockHandleFunc) // 正常
+	//r.addRouter("GET", "/study/:action", mockHandleFunc)      // 正常
+	//
+	//// 正常注册通配符路由
+	//r.addRouter("GET", "/assets/*filepath", mockHandleFunc)
+	//
+	//// 通配符路由冲突
+	r.addRouter("GET", "/assets/*filename", mockHandleFunc)
+	//
+	//// 参数路由和通配符路由冲突
+	r.addRouter("GET", "/assets/:course", mockHandleFunc)
+}
+
+func TestRouterGetB(t *testing.T) {
+
+	testCases := []struct {
+		name    string
+		method  string
+		pattern string
+
+		wantBool bool
+		key      string
+		value    string
+	}{
+		{
+			name:     "success",
+			method:   "GET",
+			pattern:  "/python/intro",
+			wantBool: true,
+			key:      "lang",
+			value:    "python",
+		},
+		{
+			name:     "success",
+			method:   "GET",
+			pattern:  "/golang/doc",
+			wantBool: true,
+			key:      "lang",
+			value:    "golang",
+		},
+		{
+			name:     "success",
+			method:   "GET",
+			pattern:  "/p/related",
+			wantBool: true,
+		},
+		{
+			name:     "success",
+			method:   "GET",
+			pattern:  "/study/golang/user",
+			wantBool: true,
+			key:      "action",
+			value:    "golang",
+		},
+		{
+			name:     "success",
+			method:   "GET",
+			pattern:  "/assets/css/index.css",
+			wantBool: true,
+			key:      "filepath",
+			value:    "css/index.css",
+		},
+		{
+			name:     "success",
+			method:   "GET",
+			pattern:  "/study/golang/user/asdio",
+			wantBool: false,
+		},
+	}
+	r := newRouter()
+	mockHandleFunc := func(ctx *Context) {}
+	r.addRouter("GET", "/:lang/intro", mockHandleFunc)
+	r.addRouter("GET", "/:lang/tutorial", mockHandleFunc)
+	r.addRouter("GET", "/:lang/doc", mockHandleFunc)
+	r.addRouter("GET", "/about", mockHandleFunc)
+	r.addRouter("GET", "/p/blog", mockHandleFunc)
+	r.addRouter("GET", "/p/related", mockHandleFunc)
+	r.addRouter("GET", "/study/:action/user", mockHandleFunc) // 正常
+	r.addRouter("GET", "/assets/*filepath", mockHandleFunc)   // 正常
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, params, ok := r.getRouter(tc.method, tc.pattern)
+			assert.Equal(t, tc.wantBool, ok)
+			if !ok {
+				return
+			}
+			assert.Equal(t, tc.value, params[tc.key])
+		})
+	}
+}
