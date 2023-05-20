@@ -4,25 +4,17 @@ import (
 	"testing"
 )
 
-// 注册路由是在启动服务之前就应该完成的
-func Login(ctx *Context) {
-	ctx.response.Write([]byte("login请求成功"))
-}
-func Register(ctx *Context) {
-	ctx.response.Write([]byte("register请求成功"))
-}
-func Index(ctx *Context) {
-	ctx.response.Write([]byte("首页"))
-}
-func ParamIndex(ctx *Context) {
-	ctx.response.Write([]byte("参数路由" + ctx.params["course"]))
-}
 func TestHTTP_Start(t *testing.T) {
 	h := NewHTTP()
-	h.GET("/login", Login)
-	h.GET("/study/:course", ParamIndex)
-	h.POST("/register", Register)
-	h.DELETE("/", Index)
+	h.GET("/study/login", func(ctx *Context) {
+		ctx.response.Write([]byte("静态路由 " + ctx.Pattern))
+	})
+	h.GET("/study/:course", func(ctx *Context) {
+		ctx.response.Write([]byte("参数路由 " + ctx.Pattern + "    " + ctx.params["course"]))
+	})
+	h.GET("/assets/*filepath", func(ctx *Context) {
+		ctx.response.Write([]byte("通融符路由" + ctx.Pattern + "    " + ctx.params["filepath"]))
+	})
 	err := h.Start(":8080")
 	if err != nil {
 		panic(err)
