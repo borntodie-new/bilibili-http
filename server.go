@@ -95,7 +95,7 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 匹配路由
 	n, params, ok := h.getRouter(r.Method, r.URL.Path)
-	if !ok {
+	if !ok || n.handleFunc == nil {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte("404 NOT FOUND"))
 		return
@@ -105,7 +105,8 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.params = params
 	fmt.Printf("request %s - %s\n", c.Method, c.Pattern)
 	// 2. 转发请求
-	n.handleFunc(c)
+	n.handleFunc(c)         // 这里是执行用户的视图函数
+	c.flashDataToResponse() // 大功告成
 }
 
 // Start 启动服务
