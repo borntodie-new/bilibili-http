@@ -14,6 +14,9 @@ import (
 // HandleFunc 视图函数签名
 type HandleFunc func(ctx *Context)
 
+// 在代码层面，或者说是编译阶段，就判断*HTTPServer有没有实现server接口
+var _ server = &HTTPServer{}
+
 type server interface {
 	// Handler 硬性要求，必须组合http.Handler
 	http.Handler
@@ -35,7 +38,14 @@ type HTTPServer struct {
 	// routers 临时存放路由的位置
 	// routers map[string]HandleFunc
 	// 第二个版本的路由树——前缀树
-	*router
+	// *router
+	router *router
+	// *router和 router *router两者之间的关系？
+	// 前者是直接嵌套 当前结构体可以直接通过结构体对象调用*router中的方法
+	// 后者是组装，如果想要通过当前结构体调用*router的方法，是这样使用 httpServer.router.addRouter(....)
+	// 嵌套还有一个好处，就是被嵌套的结构体中实现的方法可以当作是当前结构体实现的方法
+	// 这里路由组其实是一个根路由组
+	*RouterGroup
 }
 
 /*
@@ -78,9 +88,13 @@ func WithHTTPServerStop(fn func() error) HTTPOption {
 }
 
 func NewHTTP(opts ...HTTPOption) *HTTPServer {
+	// HTTPServer和RouterGroup相互嵌套的初始化是在这里实现的
+	rg := newRouterGroup()
 	h := &HTTPServer{
-		router: newRouter(),
+		router:      newRouter(),
+		RouterGroup: rg,
 	}
+	rg.engine = h
 	for _, opt := range opts {
 		opt(h)
 	}
@@ -94,7 +108,7 @@ func NewHTTP(opts ...HTTPOption) *HTTPServer {
 func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 匹配路由
-	n, params, ok := h.getRouter(r.Method, r.URL.Path)
+	n, params, ok := h.router.getRouter(r.Method, r.URL.Path)
 	if !ok || n.handleFunc == nil {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte("404 NOT FOUND"))
@@ -133,25 +147,25 @@ func (h *HTTPServer) Stop() error {
 //	h.routers[key] = handleFunc
 //}
 
-// GET GET请求
-func (h *HTTPServer) GET(pattern string, handleFunc HandleFunc) {
-	h.addRouter(http.MethodGet, pattern, handleFunc)
-}
-
-// POST GET请求
-func (h *HTTPServer) POST(pattern string, handleFunc HandleFunc) {
-	h.addRouter(http.MethodPost, pattern, handleFunc)
-}
-
-// DELETE GET请求
-func (h *HTTPServer) DELETE(pattern string, handleFunc HandleFunc) {
-	h.addRouter(http.MethodDelete, pattern, handleFunc)
-}
-
-// PUT GET请求
-func (h *HTTPServer) PUT(pattern string, handleFunc HandleFunc) {
-	h.addRouter(http.MethodPut, pattern, handleFunc)
-}
+//// GET GET请求
+//func (h *HTTPServer) GET(pattern string, handleFunc HandleFunc) {
+//	h.addRouter(http.MethodGet, pattern, handleFunc)
+//}
+//
+//// POST GET请求
+//func (h *HTTPServer) POST(pattern string, handleFunc HandleFunc) {
+//	h.addRouter(http.MethodPost, pattern, handleFunc)
+//}
+//
+//// DELETE GET请求
+//func (h *HTTPServer) DELETE(pattern string, handleFunc HandleFunc) {
+//	h.addRouter(http.MethodDelete, pattern, handleFunc)
+//}
+//
+//// PUT GET请求
+//func (h *HTTPServer) PUT(pattern string, handleFunc HandleFunc) {
+//	h.addRouter(http.MethodPut, pattern, handleFunc)
+//}
 
 // 一个Server需要什么功能
 // 1. 启动
