@@ -54,6 +54,8 @@ type Context struct {
 }
 
 // Params 获取请求参数
+// /user/1
+// /user/:id
 func (c *Context) Params(key string) (string, error) {
 	value, ok := c.params[key]
 	if !ok {
@@ -64,6 +66,7 @@ func (c *Context) Params(key string) (string, error) {
 
 // Query 获取查询参数
 // 我怎么判断用户存的是一个空串还是就是没有值
+// /user/1?username=jajsjj&password=askdlaskajf
 func (c *Context) Query(key string) (string, error) {
 	if c.cacheQuery == nil {
 		c.cacheQuery = c.request.URL.Query()
@@ -80,6 +83,7 @@ func (c *Context) Query(key string) (string, error) {
 
 // Form 获取请求体中的数据
 // 只解析urlencoded编码格式的数据
+// 纯粹获取请求体中的数据
 func (c *Context) Form(key string) (string, error) {
 	if c.cacheBody == nil {
 		c.cacheBody = c.request.Body
@@ -143,6 +147,8 @@ func (c *Context) JSON(code int, data any) {
 	c.SetStatusCode(code)
 	c.SetHeader("Context-Type", "application/json")
 	res, err := json.Marshal(data)
+	//encoder := json.NewEncoder(c.response)
+	//err = encoder.Encode(data)
 	if err != nil {
 		// 现在程序存在的问题：咱们这里是直接panic
 		// 那我们之前设置的状态码和响应头需要去掉吗？
