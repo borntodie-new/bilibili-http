@@ -81,6 +81,22 @@ func TestHTTP_Start(t *testing.T) {
 			"password": user.Password,
 		})
 	})
+	v1 := h.Group("/v1")
+	{
+		v1.GET("/login", func(ctx *Context) {
+			ctx.HTML(http.StatusOK, fmt.Sprintf(`<h1 style="color: red;">%s</h1>`, ctx.Pattern))
+		})
+		v1.POST("/register", func(ctx *Context) {
+			ctx.HTML(http.StatusOK, fmt.Sprintf(`<h1 style="color: red;">%s</h1>`, ctx.Pattern))
+		})
+	}
+	v2 := h.Group("/v2")
+	{
+		order := v2.Group("/order")
+		order.GET("/xxx", func(ctx *Context) {
+			ctx.HTML(http.StatusOK, fmt.Sprintf(`<h1 style="color: red;">%s</h1>`, ctx.Pattern))
+		})
+	}
 	err := h.Start(":8080")
 	if err != nil {
 		panic(err)
