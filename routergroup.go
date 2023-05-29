@@ -16,6 +16,8 @@ type RouterGroup struct {
 	// 这里最好是将engine申明成server接口类型
 	engine *HTTPServer
 	// ...
+	// middlewares 当前路由组所有的中间件
+	middlewares []MiddlewareHandleFunc
 }
 
 // Group 注册路由组
@@ -37,7 +39,15 @@ func (r *RouterGroup) Group(prefix string) *RouterGroup {
 		engine: r.engine,
 		parent: r,
 	}
+	// 将新建的路由组添加到HTTPServer中
+	r.engine.groups = append(r.engine.groups, rg)
 	return rg
+}
+
+// Use 注册中间件
+func (r *RouterGroup) Use(mids ...MiddlewareHandleFunc) {
+	// 问题：中间件放哪？维护在哪里？
+	r.middlewares = append(r.middlewares, mids...)
 }
 
 // 抽取出来的公共方法
