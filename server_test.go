@@ -4,7 +4,20 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 )
+
+func Logger() MiddlewareHandleFunc {
+	return func(next HandleFunc) HandleFunc {
+		return func(ctx *Context) {
+			ctime := time.Now()
+			fmt.Printf("请求进来的时间: %v\n", ctime.Format("2006-01-02 15:04:05"))
+			time.Sleep(time.Second * 3)
+			next(ctx)
+			fmt.Printf("请求走的时间：%v, 总计耗时：%d \n", time.Now().Format("2006-01-02 15:04:05"), time.Since(ctime).Milliseconds())
+		}
+	}
+}
 
 func TestHTTP_Start(t *testing.T) {
 	h := NewHTTP()
@@ -82,6 +95,7 @@ func TestHTTP_Start(t *testing.T) {
 		})
 	})
 	v1 := h.Group("/v1")
+	v1.Use(Logger())
 	{
 		v1.GET("/login", func(ctx *Context) {
 			ctx.HTML(http.StatusOK, fmt.Sprintf(`<h1 style="color: red;">%s</h1>`, ctx.Pattern))
