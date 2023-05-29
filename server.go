@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -46,6 +47,9 @@ type HTTPServer struct {
 	// 嵌套还有一个好处，就是被嵌套的结构体中实现的方法可以当作是当前结构体实现的方法
 	// 这里路由组其实是一个根路由组
 	*RouterGroup
+
+	// groups 维护整个项目所有的路由组
+	groups []*RouterGroup
 }
 
 /*
@@ -118,10 +122,61 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := NewContext(w, r)
 	c.params = params
 	fmt.Printf("request %s - %s\n", c.Method, c.Pattern)
+	// 搜集当前请求的所有中间件方法
+	mids := h.filterMiddlewares(c.Pattern)
+	if len(mids) == 0 {
+		// 若当前请求上没有配备任何中间件，就需要创建一个mids，用来维护所有的中间件
+		// 为什么？
+		//
+		mids = make([]MiddlewareHandleFunc, 0)
+	}
+
+	// 重头：如何构建出类似这样的代码？
+	handleFunc := n.handleFunc
+	for i := len(mids) - 1; i >= 0; i-- {
+		handleFunc = mids[i](handleFunc)
+	}
+	// 到这里之后，handleFunc其实就是mids[0]
 	// 2. 转发请求
-	n.handleFunc(c)         // 这里是执行用户的视图函数
+	handleFunc(c)           // 这里是执行用户的视图函数
 	c.flashDataToResponse() // 大功告成
 }
+
+/*
+如果有中间件，咱们需要将匹配到的视图函数添加到中间件切片中
+如果没有，咱们也需要将匹配到的视图函数添加到中间件切片中
+*/
+
+// filterMiddlewares 匹配当前URL所对应的所有中间件
+func (h *HTTPServer) filterMiddlewares(pattern string) []MiddlewareHandleFunc {
+	// pattern /login
+	// 先明确，中间件放在哪里？
+	mids := make([]MiddlewareHandleFunc, 0)
+	for _, group := range h.groups {
+		if strings.HasPrefix(pattern, group.prefix) {
+			// strings.HasPrefix("asuihjdfocrenifgv", "") => True
+			// pattern = /v1/login
+			/*
+				[
+					{prefix: "", middlewares:[mid1, mid2]},
+					{prefix: "/v1", middlewares:[mid1, mid2]},
+					{prefix: "/v2", middlewares:[mid1, mid2]},
+				]
+			*/
+			mids = append(mids, group.middlewares...)
+		}
+	}
+	return mids
+}
+
+/*
+先明确，中间件放在哪里？
+目前来说，中间件是放在每个路由组中
+我们现在是在HTTPServer身上，拿不到所有的路由组信息
+所以我们就像能不能在HTTPServer身上维护整个项目所有的路由组？
+又所有的路由组，就表示能够拿到整个项目中所有的中间件
+
+*/
 
 // Start 启动服务
 func (h *HTTPServer) Start(addr string) error {
