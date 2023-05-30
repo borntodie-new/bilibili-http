@@ -40,7 +40,7 @@ func newRouter() *router {
 // pattern = /
 // handleFunc = HandleFunc()
 // 意思是什么呢？就是说为 / 节点绑定一个视图函数
-func (r *router) addRouter(method string, pattern string, handleFunc HandleFunc) {
+func (r *router) addRouter(method string, pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc) {
 	// method = GET
 	// pattern = /
 	fmt.Printf("add router %s - %s\n", method, pattern)
@@ -84,7 +84,10 @@ func (r *router) addRouter(method string, pattern string, handleFunc HandleFunc)
 	if root.handleFunc != nil {
 		panic(fmt.Sprintf("web: 路由冲突 - %s", pattern))
 	}
+	// 设置视图函数
 	root.handleFunc = handleFunc
+	// 设置中间件列表
+	root.middlewareChains = middlewareChains
 }
 
 // getRouter 匹配路由
@@ -152,6 +155,9 @@ type node struct {
 	// handleFunc 这里存的是当前节点上的视图函数
 	// 就是咱们之前讲的data
 	handleFunc HandleFunc
+	// 单一路由上的中间件列表
+	middlewareChains MiddlewareChains
+
 	// paramChild 参数路由
 	// 问题一：为什么这里是一个纯的node节点呢？
 	// /study/:course
