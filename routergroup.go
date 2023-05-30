@@ -53,31 +53,31 @@ func (r *RouterGroup) Use(mids ...MiddlewareHandleFunc) {
 // 抽取出来的公共方法
 
 // GET GET请求
-func (r *RouterGroup) GET(pattern string, handleFunc HandleFunc) {
-	r.addRouter(http.MethodGet, pattern, handleFunc)
+func (r *RouterGroup) GET(pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc) {
+	r.addRouter(http.MethodGet, pattern, handleFunc, middlewareChains...)
 }
 
 // POST GET请求
-func (r *RouterGroup) POST(pattern string, handleFunc HandleFunc) {
-	r.addRouter(http.MethodPost, pattern, handleFunc)
+func (r *RouterGroup) POST(pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc) {
+	r.addRouter(http.MethodPost, pattern, handleFunc, middlewareChains...)
 }
 
 // DELETE GET请求
-func (r *RouterGroup) DELETE(pattern string, handleFunc HandleFunc) {
-	r.addRouter(http.MethodDelete, pattern, handleFunc)
+func (r *RouterGroup) DELETE(pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc) {
+	r.addRouter(http.MethodDelete, pattern, handleFunc, middlewareChains...)
 }
 
 // PUT GET请求
-func (r *RouterGroup) PUT(pattern string, handleFunc HandleFunc) {
-	r.addRouter(http.MethodPut, pattern, handleFunc)
+func (r *RouterGroup) PUT(pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc) {
+	r.addRouter(http.MethodPut, pattern, handleFunc, middlewareChains...)
 }
 
 // addRouter1 这里是注册路由的唯一路径
 // 这里是和router路由树直接交互的入口，所以必须调用router的addRouter方法
-func (r *RouterGroup) addRouter(method string, pattern string, handleFunc HandleFunc) {
+func (r *RouterGroup) addRouter(method string, pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc) {
 	// 这里就是将路由组的唯一标识和需要注册的路由进行绑定
 	pattern = fmt.Sprintf("%s%s", r.prefix, pattern)
-	r.engine.router.addRouter(method, pattern, handleFunc)
+	r.engine.router.addRouter(method, pattern, handleFunc, middlewareChains...)
 }
 
 func newRouterGroup() *RouterGroup {
@@ -231,4 +231,43 @@ POST - /v2/user/:id
 为什么？
 扩展性
 
+*/
+
+/*
+e := gin.Default()
+e.GET("/login", func(ctx *gin.Context){})
+v1 := e.Group("/v1")
+v1.Use(func(ctx *gin.Context){})
+{
+	v1.GET("/user/:id",func(ctx *gin.Context){}, func(ctx *gin.Context){})
+	v1.DELETE("/user/:id", func(ctx *gin.Context){})
+	v1.POST("/user", func(ctx *gin.Context){})
+}
+v2 := e.Group("/v1")
+{
+	v2.GET("/user/:id", func(ctx *gin.Context){})
+	v2.DELETE("/user/:id", func(ctx *gin.Context){})
+	v2.POST("/user", func(ctx *gin.Context){})
+}
+
+e.Run(":8080")
+
+想一想：我们注册某个或者多个中间件到具体的某个视图上，那这些注册的中间件需要维护在哪？
+天然就能想到应该是维护在当前这个路由的节点上。
+*/
+
+//func Inter(number int, values ...interface{})  {
+//	// 这里需要的是一个打散或的数据
+//	// 执行逻辑的时候，就会报错
+//}
+//
+//func Func(values ...string)  {
+//	Inter(1, values)
+//}
+//
+//func Test()  {
+//	Func("as")
+//}
+/*
+不定长参数：不定长参数，他只能在最后作为参数
 */
