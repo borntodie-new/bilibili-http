@@ -15,6 +15,9 @@ import (
 // HandleFunc 视图函数签名
 type HandleFunc func(ctx *Context)
 
+// MiddlewareChains 中间件责任链
+type MiddlewareChains []MiddlewareHandleFunc
+
 // 在代码层面，或者说是编译阶段，就判断*HTTPServer有没有实现server接口
 var _ server = &HTTPServer{}
 
@@ -27,7 +30,7 @@ type server interface {
 	Stop() error
 	// addRouter 注册路由：这个是一个非常核心的API，表示他不能被外界使用【外界：开发者】
 	// 造一些衍生API供开发者使用
-	addRouter(method string, pattern string, handleFunc HandleFunc)
+	addRouter(method string, pattern string, handleFunc HandleFunc, middlewareChains ...MiddlewareHandleFunc)
 }
 
 type HTTPOption func(h *HTTPServer)
@@ -122,7 +125,7 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := NewContext(w, r)
 	c.params = params
 	fmt.Printf("request %s - %s\n", c.Method, c.Pattern)
-	// 搜集当前请求的所有中间件方法
+	// 搜集当前请求的所有中间件方法——路由组身上的中间件
 	mids := h.filterMiddlewares(c.Pattern)
 	if len(mids) == 0 {
 		// 若当前请求上没有配备任何中间件，就需要创建一个mids，用来维护所有的中间件
@@ -130,6 +133,9 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		//
 		mids = make([]MiddlewareHandleFunc, 0)
 	}
+
+	// 将当前匹配大的视图节点中的中间件全部添加到mids切片中——当前视图身上的中间件
+	mids = append(mids, n.middlewareChains...)
 
 	// 重头：如何构建出类似这样的代码？
 	handleFunc := n.handleFunc
