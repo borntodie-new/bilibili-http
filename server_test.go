@@ -111,6 +111,28 @@ func TestHTTP_Start(t *testing.T) {
 			ctx.HTML(http.StatusOK, fmt.Sprintf(`<h1 style="color: red;">%s</h1>`, ctx.Pattern))
 		})
 	}
+	v3 := h.Group("/v3")
+	v3.Use(Logger())
+	{
+		v3.GET("/login", func(ctx *Context) {
+			ctx.TEXT(http.StatusOK, fmt.Sprintf("请求成功：%s", ctx.Pattern))
+		}, func(next HandleFunc) HandleFunc {
+			return func(ctx *Context) {
+				fmt.Println("大家好1，我来了哈")
+				next(ctx)
+				fmt.Println("大家好1，我走了哈")
+			}
+		}, func(next HandleFunc) HandleFunc {
+			return func(ctx *Context) {
+				fmt.Println("大家好2，我来了哈")
+				next(ctx)
+				fmt.Println("大家好2，我走了哈")
+			}
+		})
+		v3.GET("/register", func(ctx *Context) {
+			ctx.TEXT(http.StatusOK, fmt.Sprintf("请求成功： %s", ctx.Pattern))
+		})
+	}
 	err := h.Start(":8080")
 	if err != nil {
 		panic(err)
