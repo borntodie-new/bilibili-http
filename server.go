@@ -118,21 +118,27 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	n, params, ok := h.router.getRouter(r.Method, r.URL.Path)
 	if !ok || n.handleFunc == nil {
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte("404 NOT FOUND"))
+		_, _ = w.Write([]byte("404 NOT FOUND肯定失败"))
 		return
 	}
 	// 2. 构造当前请求的上下文
 	c := NewContext(w, r)
 	c.params = params
 	fmt.Printf("request %s - %s\n", c.Method, c.Pattern)
+	// 将项目全局的中间件注册好
+	mids := []MiddlewareHandleFunc{flush(), recovery()}
 	// 搜集当前请求的所有中间件方法——路由组身上的中间件
-	mids := h.filterMiddlewares(c.Pattern)
-	if len(mids) == 0 {
-		// 若当前请求上没有配备任何中间件，就需要创建一个mids，用来维护所有的中间件
-		// 为什么？
-		//
-		mids = make([]MiddlewareHandleFunc, 0)
+	// mids = append(mids, h.filterMiddlewares(c.Pattern)...)
+	gms := h.filterMiddlewares(c.Pattern)
+	if len(gms) != 0 {
+		mids = append(mids, gms...)
 	}
+	//if len(mids) == 0 {
+	//	// 若当前请求上没有配备任何中间件，就需要创建一个mids，用来维护所有的中间件
+	//	// 为什么？
+	//	//
+	//	mids = make([]MiddlewareHandleFunc, 0)
+	//}
 
 	// 将当前匹配大的视图节点中的中间件全部添加到mids切片中——当前视图身上的中间件
 	mids = append(mids, n.middlewareChains...)
@@ -144,8 +150,8 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// 到这里之后，handleFunc其实就是mids[0]
 	// 2. 转发请求
-	handleFunc(c)           // 这里是执行用户的视图函数
-	c.flashDataToResponse() // 大功告成
+	handleFunc(c) // 这里是执行用户的视图函数
+	// c.flashDataToResponse() // 大功告成
 }
 
 /*
