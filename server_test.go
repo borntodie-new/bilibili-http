@@ -119,6 +119,12 @@ func TestHTTP_Start(t *testing.T) {
 		}, func(next HandleFunc) HandleFunc {
 			return func(ctx *Context) {
 				fmt.Println("大家好1，我来了哈")
+				if ctx == nil {
+					ctx.SetStatusCode(http.StatusNotFound)
+					return
+					//panic()
+				}
+				panic("手动panic")
 				next(ctx)
 				fmt.Println("大家好1，我走了哈")
 			}
@@ -138,3 +144,9 @@ func TestHTTP_Start(t *testing.T) {
 		panic(err)
 	}
 }
+
+/*
+现在这种情况是什么原因呢？
+是因为响应体里面的数据没有正确写入
+
+*/
